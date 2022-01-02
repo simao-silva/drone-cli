@@ -35,7 +35,7 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          platforms: linux/${{ env.ARCH }}
+          platforms: linux/amd64
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-${{ env.ARCH }}
@@ -71,10 +71,10 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          platforms: linux/arm/${{ env.VARIANT }}
+          platforms: linux/arm/v6
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-${{ env.ARCH }}32${{ env.VARIANT }}
+            ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-${{ env.ARCH }}${{ env.VARIANT }}
           file: Dockerfile
           build-args: |
             VERSION=${{ env.CLI_VERSION }}
@@ -107,10 +107,10 @@ jobs:
         uses: docker/build-push-action@v2
         with:
           context: .
-          platforms: linux/arm/${{ env.VARIANT }}
+          platforms: linux/arm/v7
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-${{ env.ARCH }}32${{ env.VARIANT }}
+            ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-${{ env.ARCH }}${{ env.VARIANT }}
           file: Dockerfile
           build-args: |
             VERSION=${{ env.CLI_VERSION }}
@@ -136,14 +136,14 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Checkout
-        uses: actions/checkout@v2    
+        uses: actions/checkout@v2
 
       - name: Build and push
         id: docker_build
         uses: docker/build-push-action@v2
         with:
           context: .
-          platforms: linux/${{ env.ARCH }}/${{ env.VARIANT }}
+          platforms: linux/arm64/v8
           push: true
           tags: |
             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-${{ env.ARCH }}
@@ -152,4 +152,50 @@ jobs:
           build-args: |
             VERSION=${{ env.CLI_VERSION }}
             ARCH=${{ env.ARCH }}
+
+
+  build-manifest:
+      needs: [build-amd64, build-arm32v6, build-arm32v7, build-arm64]
+      runs-on: ubuntu-latest
+      env: 
+        MANIFEST_VERSION: v1.0.3
+      steps:
+        - name: install manifest-tool
+          run: |
+            sudo apt install -y --no-install-recommends wget
+            wget -O manifest-tool https://github.com/estesp/manifest-tool/releases/download/${{ env.MANIFEST_VERSION }}/manifest-tool-linux-amd64
+            chmod +x manifest-tool
+
+        - name: build and push manifest for version ${{ env.CLI_VERSION }}
+          run: |
+            ./manifest-tool \
+                --username ${{ secrets.DOCKERHUB_USERNAME }} \
+                --password ${{ secrets.DOCKERHUB_TOKEN }} \
+                --debug \
+               push from-args \
+                --platforms linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/arm64/v8 \
+                --template ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-ARCHVARIANT \
+                --target ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}
+
+        - name: build and push manifest for linux version
+          run: |
+            ./manifest-tool \
+                --username ${{ secrets.DOCKERHUB_USERNAME }} \
+                --password ${{ secrets.DOCKERHUB_TOKEN }} \
+                --debug \
+               push from-args \
+                --platforms linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/arm64/v8 \
+                --template ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-ARCHVARIANT \
+                --target ${{ env.IMAGE_NAME }}:linux
+
+        - name: build and push manifest for latest version
+          run: |
+            ./manifest-tool \
+                --username ${{ secrets.DOCKERHUB_USERNAME }} \
+                --password ${{ secrets.DOCKERHUB_TOKEN }} \
+                --debug \
+               push from-args \
+                --platforms linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/arm64/v8 \
+                --template ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-ARCHVARIANT \
+                --target ${{ env.IMAGE_NAME }}:latest
 
