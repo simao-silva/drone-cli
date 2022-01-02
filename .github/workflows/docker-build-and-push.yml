@@ -157,45 +157,53 @@ jobs:
   build-manifest:
       needs: [build-amd64, build-arm32v6, build-arm32v7, build-arm64]
       runs-on: ubuntu-latest
-      env: 
-        MANIFEST_VERSION: v1.0.3
       steps:
-        - name: install manifest-tool
-          run: |
-            sudo apt install -y --no-install-recommends wget
-            wget -O manifest-tool https://github.com/estesp/manifest-tool/releases/download/${{ env.MANIFEST_VERSION }}/manifest-tool-linux-amd64
-            chmod +x manifest-tool
 
-        - name: build and push manifest for version ${{ env.CLI_VERSION }}
-          run: |
-            ./manifest-tool \
-                --username ${{ secrets.DOCKERHUB_USERNAME }} \
-                --password ${{ secrets.DOCKERHUB_TOKEN }} \
-                --debug \
-               push from-args \
-                --platforms linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/arm64/v8 \
-                --template ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-ARCHVARIANT \
-                --target ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}
+        - name: Login to DockerHub
+          uses: docker/login-action@v1 
+          with:
+            username: ${{ secrets.DOCKERHUB_USERNAME }}
+            password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-        - name: build and push manifest for linux version
+        - name: create manifest for version ${{ env.CLI_VERSION }}
           run: |
-            ./manifest-tool \
-                --username ${{ secrets.DOCKERHUB_USERNAME }} \
-                --password ${{ secrets.DOCKERHUB_TOKEN }} \
-                --debug \
-               push from-args \
-                --platforms linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/arm64/v8 \
-                --template ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-ARCHVARIANT \
-                --target ${{ env.IMAGE_NAME }}:linux
+             DOCKER_CLI_EXPERIMENTAL=enabled \
+             docker manifest create --amend ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }} \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-amd64 \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-arm64v8 \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv7 \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv6
 
-        - name: build and push manifest for latest version
+        - name: push manifest for version ${{ env.CLI_VERSION }}
           run: |
-            ./manifest-tool \
-                --username ${{ secrets.DOCKERHUB_USERNAME }} \
-                --password ${{ secrets.DOCKERHUB_TOKEN }} \
-                --debug \
-               push from-args \
-                --platforms linux/amd64,linux/arm/v6,linux/arm/v7,linux/arm64,linux/arm64/v8 \
-                --template ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-ARCHVARIANT \
-                --target ${{ env.IMAGE_NAME }}:latest
+             DOCKER_CLI_EXPERIMENTAL=enabled \
+             docker manifest push ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}
+
+        - name: create manifest for linux version
+          run: |
+             DOCKER_CLI_EXPERIMENTAL=enabled \
+             docker manifest create --amend ${{ env.IMAGE_NAME }}:linux \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-amd64 \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-arm64v8 \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv7 \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv6
+
+        - name: push manifest for linux version
+          run: |
+             DOCKER_CLI_EXPERIMENTAL=enabled \
+             docker manifest push ${{ env.IMAGE_NAME }}:linux
+
+        - name: create manifest for latest version
+          run: |
+             DOCKER_CLI_EXPERIMENTAL=enabled \
+             docker manifest create --amend ${{ env.IMAGE_NAME }}:latest \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-amd64 \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-arm64v8 \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv7 \
+                ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv6
+
+        - name: push manifest for linux version
+          run: |
+             DOCKER_CLI_EXPERIMENTAL=enabled \
+             docker manifest push ${{ env.IMAGE_NAME }}:latest
 
