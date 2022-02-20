@@ -12,7 +12,7 @@ on:
 
 env:
   IMAGE_NAME: "simaofsilva/drone-cli"
-  CLI_VERSION: "v1.5.0"
+  CLI_VERSION: "v1.5.0" # renovate: datasource=github-tags depName=harness/drone-cli
 
 jobs:
   build-amd64:
@@ -207,7 +207,7 @@ jobs:
                 ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv7 \
                 ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv6
 
-        - name: push manifest for linux version
+        - name: push manifest for latest version
           run: |
              DOCKER_CLI_EXPERIMENTAL=enabled \
              docker manifest push ${{ env.IMAGE_NAME }}:latest
