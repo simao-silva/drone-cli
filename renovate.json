@@ -6,7 +6,23 @@
   "prHourlyLimit": 0,
   "packageRules": [
     {
-      "matchUpdateTypes": ["major", "minor", "patch", "digest"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "docker/build-push-action"
+      ],
+      "allowedVersions": "<4"
+    },
+    {
+      "matchUpdateTypes": [
+        "major",
+        "minor",
+        "patch",
+        "pin",
+        "pinDigest",
+        "digest"
+      ],
       "automerge": true,
       "automergeType": "branch"
     }
