@@ -1,4 +1,4 @@
-FROM alpine:3.18.5 AS drone-ca-certs
+FROM alpine:3.19.0 AS drone-ca-certs
 
 RUN apk add --update-cache --no-cache ca-certificates
 
