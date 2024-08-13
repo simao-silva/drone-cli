@@ -4,7 +4,7 @@ RUN apk add --update-cache --no-cache ca-certificates
 
 
 
-FROM golang:1.22.6-alpine AS compilation
+FROM golang:1.23.0-alpine AS compilation
 
 ARG CGO_ENABLED=0
 ARG VERSION
