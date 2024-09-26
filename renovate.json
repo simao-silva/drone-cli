@@ -1,19 +1,10 @@
 {
   "extends": [
-    "config:base",
+    "config:recommended",
     ":disableDependencyDashboard"
   ],
   "prHourlyLimit": 0,
   "packageRules": [
-    {
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchPackageNames": [
-        "docker/build-push-action"
-      ],
-      "allowedVersions": "<4"
-    },
     {
       "matchUpdateTypes": [
         "major",
@@ -24,7 +15,9 @@
         "digest"
       ],
       "automerge": true,
-      "automergeType": "branch"
+      "automergeType": "pr",
+      "automergeStrategy": "squash",
+      "ignoreTests": false
     }
   ],
   "regexManagers": [

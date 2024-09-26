@@ -1,0 +1,102 @@
+name: image build and push
+
+on:
+  push:
+    branches:
+      - "main"
+    paths-ignore:
+      - "**.md"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+
+env:
+  IMAGE_NAME: "simaofsilva/drone-cli"
+  CLI_VERSION: "v1.8.0" # renovate: datasource=github-tags depName=harness/drone-cli
+
+jobs:
+  env_vars:
+    name: Expose environment variables
+    runs-on: ubuntu-latest
+    outputs:
+      IMAGE_NAME: ${{ env.IMAGE_NAME }}
+      CLI_VERSION: ${{ env.CLI_VERSION }}
+    steps:
+      - run: echo "Exposing environment variables to reusable workflows."
+
+  build:
+    needs: env_vars
+    uses: ./.github/workflows/docker_reusable.yml
+    strategy:
+      matrix:
+        targets:
+          - ARCH: amd64
+            TARGET_PLATFORM: linux/amd64
+            IMAGE_NAME: "${{ needs.env_vars.outputs.IMAGE_NAME }}:${{ needs.env_vars.outputs.CLI_VERSION }}-linux-amd64"
+          - ARCH: arm
+            TARGET_PLATFORM: linux/arm/v6
+            IMAGE_NAME: "${{ needs.env_vars.outputs.IMAGE_NAME }}:${{ needs.env_vars.outputs.CLI_VERSION }}-linux-armv6"
+          - ARCH: arm
+            TARGET_PLATFORM: linux/arm/v7
+            IMAGE_NAME: "${{ needs.env_vars.outputs.IMAGE_NAME }}:${{ needs.env_vars.outputs.CLI_VERSION }}-linux-armv7"
+          - ARCH: arm64
+            TARGET_PLATFORM: linux/arm64/v8
+            IMAGE_NAME: "${{ needs.env_vars.outputs.IMAGE_NAME }}:${{ needs.env_vars.outputs.CLI_VERSION }}-linux-arm64v8"
+    with:
+      IMAGE_NAME: ${{ matrix.targets.IMAGE_NAME }}
+      VERSION: ${{ needs.env_vars.outputs.CLI_VERSION }}
+      ARCH: ${{ matrix.targets.ARCH }}
+      TARGET_PLATFORM: ${{ matrix.targets.TARGET_PLATFORM }}
+    secrets: inherit
+
+  build-manifest:
+    needs: [build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: create manifest for ARM64 variant
+        run: |
+          docker manifest create --amend ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-arm64 \
+            ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-arm64v8
+
+      - name: push manifest for ARM64 variant
+        run: docker manifest push ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-arm64
+    
+      - name: create manifest for version ${{ env.CLI_VERSION }}
+        run: |
+          docker manifest create --amend ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }} \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-amd64 \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-arm64v8 \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv7 \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv6
+
+      - name: push manifest for version ${{ env.CLI_VERSION }}
+        run: docker manifest push ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}
+
+      - name: create manifest for linux version
+        run: |
+          docker manifest create --amend ${{ env.IMAGE_NAME }}:linux \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-amd64 \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-arm64v8 \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv7 \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv6
+
+      - name: push manifest for linux version
+        run: docker manifest push ${{ env.IMAGE_NAME }}:linux
+
+      - name: create manifest for latest version
+        run: |
+          docker manifest create --amend ${{ env.IMAGE_NAME }}:latest \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-amd64 \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-arm64v8 \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv7 \
+             ${{ env.IMAGE_NAME }}:${{ env.CLI_VERSION }}-linux-armv6
+
+      - name: push manifest for latest version
+        run: docker manifest push ${{ env.IMAGE_NAME }}:latest
